@@ -6,6 +6,7 @@ export interface IUser extends Document {
   email: string;
   id: string;
   password: string;
+  role: string; // 사용자 역할 (예: admin, user 등)
   createdAt?: Date;
   updatedAt?: Date;
 }
