@@ -1,16 +1,14 @@
-import express from 'express';
-import { createUser, getUsers, loginUser, logoutUser } from '../controllers/user';
-import { registerUser } from '../controllers/user';
-import { getMe } from '../controllers/user';
-import { authMiddleware } from '../middlewares/user'; // 전하께서 올리신 그 파일
+// src/routes/user.routes.ts
+import { Router } from 'express';
+import {  getMe, getUsers, loginUser, logoutUser, registerUser } from '../controllers/user';
 
-const router = express.Router();
 
-router.post('/login', loginUser);
-router.post('/create', createUser);
-router.post('/register', registerUser);
-router.get('/me', authMiddleware, getMe); // 인증 필요
-router.get('/', getUsers);
-router.post('/logout', logoutUser); //  로그아웃 라우트 등록
+const userRouter = Router();
+userRouter.post('/register', registerUser);
+userRouter.post('/login',    loginUser);
+userRouter.get('/',          getUsers);
+userRouter.get('/me',        getMe);
+// userRouter.post('/create',   createUser);
+userRouter.post('/logout',   logoutUser);
 
-export default router;
+export default userRouter;

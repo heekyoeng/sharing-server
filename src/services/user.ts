@@ -1,30 +1,33 @@
+// src/services/user.service.ts
+import { isDate } from 'util/types';
+import { UserModel } from '../models/User';
+import { RegisterRequest, UserPublic } from '../types/auth';
+import { hashPassword } from '../utils/hash';
 
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { User } from '../models/User';
 
-export const handleLogin = async (id: string, password: string) => {
-  const user = await User.findOne({ id: id });
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    throw new Error('아이디 혹은 비밀번호가 틀렸습니다.');
-  }
+export async function registerUserSvc(p: RegisterRequest): Promise<UserPublic> {
+  const uname = p.username.trim();
+  const mail  = (p.email ?? '').trim().toLowerCase();   // ✅ 안전
 
-  const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET as string, {
-    expiresIn: '1h',
+  const orConds = [{ username: uname }, ...(mail ? [{ email: mail }] : [])];
+  if (await UserModel.exists({ $or: orConds })) throw new Error('DUPLICATE');
+
+  const user = await UserModel.create({
+    name: p.name.trim(),
+    username: uname,
+    ...(mail ? { email: mail } : {}),                   // ✅ 값 있을 때만 저장
+    password: await hashPassword(p.password.trim()),
+    role: p.role ?? 'USER',
   });
 
-  return { token, role: user.role };
-};
+  return {
+    id: String(user._id),
+    name: user.name,
+    username: user.username,
+    ...(user.email ? { email: user.email } : {}),       // ✅ DTO도 조건부
+    role: user.role as UserPublic['role'],
+    createdAt: user.createdAt!.toISOString(),
+  };
+}
 
-export const handleCreateUser = async ({ name, email, id, password }: any) => {
-  const existing = await User.findOne({ id });
-  if (existing) throw new Error('이미 존재하는 ID');
 
-  const hashed = await bcrypt.hash(password, 10);
-  const newUser = new User({ name, email, id, password: hashed });
-  return await newUser.save();
-};
-
-export const handleGetUsers = async () => {
-  return await User.find();
-};

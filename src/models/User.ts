@@ -1,34 +1,48 @@
-import mongoose, { Document } from 'mongoose';
+// models/User.ts
+import mongoose, { Schema } from 'mongoose';
 
-// ✅ TypeScript용 인터페이스 정의
-export interface IUser extends Document {
+export type UserRole = 'ADMIN' | 'USER';
+
+export interface IUser {
   name: string;
-  email: string;
-  id: string;
+  username: string;
   password: string;
-  role: string; // 사용자 역할 (예: admin, user 등)
-  createdAt?: Date;
-  updatedAt?: Date;
+  role: UserRole;
+  email: string;
+  createdAt: Date;
 }
 
-// ✅ 스키마 정의
-const userSchema = new mongoose.Schema<IUser>({
-  name: { type: String, required: true },
-  email: { type: String, required: true },
-  id: { type: String, required: true },
-  password: { type: String, required: true },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-}, {
-  timestamps: true,
-  versionKey: false
-});
+type IUserDoc = mongoose.HydratedDocument<IUser>;
+type IUserModel = mongoose.Model<IUser, {}, {}, {}, IUserDoc>; // ✅ 모델 제네릭 고정
 
-// ✅ 모델 export 시 타입 지정
-export const User = mongoose.model<IUser>('User', userSchema);
+const UserSchema = new Schema<IUser, IUserModel>(
+  {
+    name: { type: String, required: true, trim: true },
+    email: {
+      type: String, required: false, trim: true, lowercase: true,
+      unique: true, sparse: true, index: true              // ✅ 있을 때만 유니크
+    },
+    username: { type: String, required: true, trim: true, unique: true, index: true },
+    password: { type: String, required: true, select: false },
+    role: { type: String, enum: ['ADMIN', 'USER'], default: 'USER', index: true },
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        const r = ret as any;           // 🔒 transform 내부만 느슨하게
+        if (!r.id && r._id) r.id = String(r._id);
+        delete r._id;
+        delete r.password;
+        return r;
+      },
+    },
+  }
+);
+
+// Hot-reload 안전 + 타입 유지
+export const UserModel =
+  (mongoose.models.User as IUserModel) ||
+  mongoose.model<IUser, IUserModel>('User', UserSchema);
